@@ -91,7 +91,7 @@
         <div class="controls-container flex flex-wrap justify-center items-center gap-4 mb-10 p-4 rounded-xl bg-slate-800 shadow-lg">
             <!-- Mode Options -->
             <div class="flex items-center gap-2">
-                <button class="mode-btn" data-mode="lowercase">lowercase</button>
+                <button class="mode-btn selected-btn" data-mode="lowercase">lowercase</button>
                 <button class="mode-btn" data-mode="mixedcase">mixed case</button>
                 <button class="mode-btn" data-mode="specialchar">special characters</button>
                 <button class="mode-btn" data-mode="gemini">✨ Generate AI Text ✨</button>
@@ -100,7 +100,7 @@
             <div class="w-[2px] h-6 bg-gray-600 rounded"></div>
             <!-- Word Count Options -->
             <div class="flex items-center gap-2">
-                <button class="word-count-btn" data-count="30">30</button>
+                <button class="word-count-btn selected-btn" data-count="30">30</button>
                 <button class="word-count-btn" data-count="50">50</button>
                 <button class="word-count-btn" data-count="100">100</button>
                 <button class="word-count-btn" data-count="150">150</button>
@@ -231,14 +231,15 @@
             let correctTypedChars = 0;
             let completed = false;
             let currentWordCount = 30; // Default
-            let currentMode = 'mixedcase'; // Default
+            let currentMode = 'lowercase'; // Default
             let totalTimeTaken = 0;
             let isStrictMode = false;
-            let isWordMode = true; // Word mode is always on
+            let isWordMode = false; // Set to false to allow backspacing
             let isSoundOn = true;
             let previousInputValue = "";
             let currentSoundType = 'typewriter'; // Set default to new typewriter sound
 
+            // API key is handled by the canvas environment. Do not change.
             const apiKey = "";
             const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=" + apiKey;
             
@@ -314,6 +315,7 @@
 
             messageCloseBtn.addEventListener('click', hideMessageBox);
 
+            // Function to generate text using the Gemini API
             const generateTextWithGemini = async (wordCount, mode) => {
                 let prompt = "";
                 if (mode === 'lowercase') {
@@ -324,7 +326,7 @@
                 } else if (mode === 'specialchar') {
                     prompt = `Generate a grammatically correct paragraph of exactly ${wordCount} words for a typing test. It must include a variety of special characters and numbers like @, #, $, %, ^, &, *, (, ), !, ?, ., ,, and numbers.`;
                 } else {
-                     prompt = `Generate a grammatically correct paragraph of exactly ${wordCount} words for a typing test.`;
+                    prompt = `Generate a grammatically correct paragraph of exactly ${wordCount} words for a typing test.`;
                 }
                 
                 typingAreaEl.innerHTML = `<span class="text-gray-400">Generating text... please wait.</span>`;
@@ -332,6 +334,10 @@
                 try {
                     const payload = {
                         contents: [{ parts: [{ text: prompt }] }],
+                        tools: [{ "google_search": {} }],
+                        systemInstruction: {
+                          parts: [{ text: "You are a world-class text generator for typing tests. You will be provided with a prompt asking for a passage of a specific word count and style. Your task is to generate a unique, coherent, and readable passage that strictly adheres to the word count and stylistic constraints provided. The content should be general knowledge or creative prose, not a direct summary of a search result. Your response should be the passage itself, with no extra conversational text." }]
+                        }
                     };
                     
                     const response = await fetch(apiUrl, {
@@ -346,7 +352,7 @@
                     }
                     
                     const result = await response.json();
-                    const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || "Failed to generate text.";
+                    const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || "Failed to generate text. Please try again.";
                     return text.trim();
 
                 } catch (error) {
@@ -355,6 +361,7 @@
                 }
             };
 
+            // Function to get random text from the pre-defined lists
             const getRandomText = (wordCount, mode) => {
                 const list = wordLists[mode] || wordLists.mixedcase;
                 const shuffledSentences = [...list].sort(() => 0.5 - Math.random());
@@ -378,11 +385,14 @@
                 return resultText.trim();
             };
 
+            // Main function to start or reset the test
             const initializeTest = async (wordCount, mode) => {
                 let text;
+                // If the user selected the Gemini mode, generate new text
                 if (mode === 'gemini') {
                     text = await generateTextWithGemini(wordCount, mode);
                 } else {
+                    // Otherwise, get text from the predefined lists
                     text = getRandomText(wordCount, mode);
                 }
                 
@@ -401,6 +411,7 @@
                 previousInputValue = ""; // Reset previous input value
             };
 
+            // Function to update the display based on user input
             const updateDisplay = () => {
                 const typedText = hiddenInput.value;
                 const characters = typingAreaEl.querySelectorAll('span');
@@ -461,6 +472,7 @@
                 correctTypedChars = currentCorrectChars;
             };
 
+            // Function to calculate and show final results
             const showResults = () => {
                 const wordsTyped = totalTypedChars / 5;
                 const wpm = Math.round((wordsTyped / totalTimeTaken) * 60);
@@ -473,6 +485,7 @@
                 resultsArea.classList.remove('hidden');
             };
 
+            // Function to play sound effects on key presses
             const playTypingSound = (character) => {
                 if (!isSoundOn) return;
                 const typedText = hiddenInput.value;
@@ -492,10 +505,11 @@
                             synths.mechanical.triggerAttackRelease(duration);
                             break;
                         case 'typewriter':
-                            // Play the typewriter synth directly since it's now a MembraneSynth
+                            // Play the carriage return sound on a space
                             if (character === ' ' && typedText.length > 0 && typedText[typedText.length - 1] !== ' ') {
                                 synths.carriageReturn.triggerAttackRelease("G4", "0.2");
                             } else {
+                                // Play the regular typewriter sound for other characters
                                 synths.typewriter.triggerAttackRelease(noteToPlay, duration);
                                 noteIndex = (noteIndex + 1) % soundNotes.length;
                             }
@@ -510,6 +524,7 @@
                 }
             };
 
+            // Event listener for user input
             hiddenInput.addEventListener('input', () => {
                 const typedText = hiddenInput.value;
                 const newCharacter = typedText.slice(-1);
@@ -533,7 +548,8 @@
                 }
             });
 
-            // Handle backspace for word mode
+            // Handle backspace. This is currently disabled by 'isWordMode=false' but
+            // is kept for future functionality.
             hiddenInput.addEventListener('keydown', (e) => {
                 if (isWordMode && e.key === 'Backspace') {
                     const typedText = hiddenInput.value;
@@ -581,15 +597,7 @@
                 button.addEventListener('click', (e) => {
                     currentSoundType = e.target.dataset.soundType;
                     // Update the currentSynth variable to the new synth
-                    if (currentSoundType === 'mechanical') {
-                        currentSynth = synths.mechanical;
-                    } else if (currentSoundType === 'piano') {
-                        currentSynth = synths.piano;
-                    } else if (currentSoundType === 'typewriter') {
-                        currentSynth = synths.typewriter;
-                    } else {
-                        currentSynth = synths[currentSoundType];
-                    }
+                    currentSynth = synths[currentSoundType];
                     // Update button active state
                     soundTypeButtons.forEach(btn => btn.classList.remove('selected-btn'));
                     e.target.classList.add('selected-btn');
@@ -638,12 +646,17 @@
                 hiddenInput.focus();
             });
 
-            // Set initial button states
-            document.querySelector(`[data-count="${currentWordCount}"]`).classList.add('selected-btn');
-            document.querySelector(`[data-mode="${currentMode}"]`).classList.add('selected-btn');
-            document.querySelector(`[data-sound-type="${currentSoundType}"]`).classList.add('selected-btn');
+            // Set initial button states on page load
+            const initialWordCountBtn = document.querySelector(`[data-count="${currentWordCount}"]`);
+            if (initialWordCountBtn) initialWordCountBtn.classList.add('selected-btn');
+            
+            const initialModeBtn = document.querySelector(`[data-mode="${currentMode}"]`);
+            if (initialModeBtn) initialModeBtn.classList.add('selected-btn');
 
-            // Initialize the test on page load
+            const initialSoundTypeBtn = document.querySelector(`[data-sound-type="${currentSoundType}"]`);
+            if (initialSoundTypeBtn) initialSoundTypeBtn.classList.add('selected-btn');
+
+            // Initialize the test on page load with default values
             initializeTest(currentWordCount, currentMode);
         });
     </script>
