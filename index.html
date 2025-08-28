@@ -78,6 +78,38 @@
             box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
             text-align: center;
         }
+        /* ...existing code... */
+@media (max-width: 640px) {
+    body {
+        align-items: flex-start;
+        min-height: 100vh;
+    }
+    .max-w-6xl {
+        max-width: 100vw;
+        width: 100vw;
+        padding: 0.5rem !important;
+    }
+    .controls-container {
+        flex-direction: column;
+        gap: 0.5rem;
+        padding: 0.5rem !important;
+        width: 100%;
+        overflow-x: auto;
+    }
+    #text-to-type {
+        font-size: 1rem;
+        padding: 1rem 0.5rem;
+        max-height: 8rem;
+        word-break: break-word;
+    }
+    #typing-container {
+        width: 100%;
+    }
+    #results-area {
+        width: 100%;
+    }
+}
+/* ...existing code... */
     </style>
 </head>
 <body class="bg-gray-900">
@@ -550,15 +582,18 @@
 
             // Handle backspace. This is currently disabled by 'isWordMode=false' but
             // is kept for future functionality.
+            // ...existing code...
             hiddenInput.addEventListener('keydown', (e) => {
-                if (isWordMode && e.key === 'Backspace') {
-                    const typedText = hiddenInput.value;
-                    // Prevent backspacing over a space, effectively locking the user to the current word.
-                    if (typedText.length > 0 && typedText.slice(-1) === ' ') {
-                        e.preventDefault();
+            // No Backspace Across Word Boundary
+               if (e.key === 'Backspace') {
+                const typedText = hiddenInput.value;
+               // Prevent backspacing over a space (word boundary)
+                if (typedText.length > 0 && typedText.slice(-1) === ' ') {
+                   e.preventDefault();
                     }
                 }
             });
+// ...existing code...
 
             // Handle word count buttons
             wordCountButtons.forEach(button => {
