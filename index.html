@@ -98,16 +98,30 @@
         box-sizing: border-box;
     }
     .controls-container {
-        flex-direction: column;
-        gap: 0.5rem;
-        padding: 0.5rem !important;
-        width: 100%;
+        flex-wrap: wrap;
+        flex-direction: row !important;
+        gap: 0.3rem;
+        padding: 0.3rem !important;
+        width: 100vw;
         overflow-x: auto;
+        overflow-y: visible;
         box-sizing: border-box;
+        justify-content: flex-start;
+        align-items: flex-start;
+    }
+    .controls-container > div {
+        flex-wrap: wrap;
+        min-width: 0;
     }
     .controls-container button {
         font-size: 0.9rem;
-        padding: 0.4rem 0.7rem;
+        padding: 0.3rem 0.6rem;
+        margin: 0.1rem 0;
+        min-width: 80px;
+        white-space: nowrap;
+    }
+    .w-\[2px\] {
+        display: none !important;
     }
     #text-to-type {
         font-size: 1rem;
