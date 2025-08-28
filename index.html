@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Musical Typing Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Tone.js for sound effects -->
+    <script src="https://unpkg.com/tone@14.7.58/build/Tone.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0b1120;
+            color: #d1d5db; /* Default light gray text */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .text-untyped {
+            color: #5c6c8c;
+        }
+        .text-correct {
+            color: #4ade80;
+        }
+        .text-incorrect {
+            color: #ef4444;
+        }
+        #text-to-type {
+            line-height: 2.5rem;
+            font-size: 1.5rem;
+            max-height: 10rem; /* Limit height to enable scrolling */
+            overflow: hidden; /* Hide scrollbar for cleaner look */
+        }
+        .text-current {
+            text-decoration: underline;
+            text-decoration-color: #fff;
+            text-decoration-thickness: 2px;
+            text-underline-offset: 4px;
+        }
+        /* Hide the textarea but keep it for input focus */
+        #hidden-input {
+            position: absolute;
+            opacity: 0;
+            left: -9999px;
+            z-index: -10;
+        }
+        .selected-btn {
+            background-color: #1e3a8a;
+            color: #ffffff;
+            font-weight: 600;
+        }
+        .controls-container button {
+            transition: all 0.2s ease-in-out;
+            border-radius: 9999px;
+            padding: 0.5rem 1rem;
+            background-color: #1f2937;
+            color: #9ca3af;
+        }
+        .controls-container button:hover {
+            background-color: #374151;
+            color: #d1d5db;
+        }
+        /* Message box styling */
+        .message-box {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(17, 24, 39, 0.9);
+            color: #fff;
+            padding: 2rem;
+            border-radius: 1rem;
+            z-index: 1000;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <div class="max-w-6xl w-full p-4 flex flex-col items-center">
+        <!-- Site Title -->
+        <h1 class="text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-600 mb-8">
+            Musical Typing Test
+        </h1>
+
+        <!-- Top Controls Bar -->
+        <div class="controls-container flex flex-wrap justify-center items-center gap-4 mb-10 p-4 rounded-xl bg-slate-800 shadow-lg">
+            <!-- Mode Options -->
+            <div class="flex items-center gap-2">
+                <button class="mode-btn" data-mode="lowercase">lowercase</button>
+                <button class="mode-btn" data-mode="mixedcase">mixed case</button>
+                <button class="mode-btn" data-mode="specialchar">special characters</button>
+                <button class="mode-btn" data-mode="gemini">✨ Generate AI Text ✨</button>
+            </div>
+            <!-- Separator -->
+            <div class="w-[2px] h-6 bg-gray-600 rounded"></div>
+            <!-- Word Count Options -->
+            <div class="flex items-center gap-2">
+                <button class="word-count-btn" data-count="30">30</button>
+                <button class="word-count-btn" data-count="50">50</button>
+                <button class="word-count-btn" data-count="100">100</button>
+                <button class="word-count-btn" data-count="150">150</button>
+                <button class="word-count-btn" data-count="200">200</button>
+            </div>
+            <!-- Separator -->
+            <div class="w-[2px] h-6 bg-gray-600 rounded"></div>
+            <!-- Time Options -->
+            <div class="flex items-center gap-2">
+                <button class="time-btn" data-time="15">15s</button>
+                <button class="time-btn" data-time="30">30s</button>
+                <button class="time-btn selected-btn" data-time="60">60s</button>
+                <button class="time-btn" data-time="120">120s</button>
+            </div>
+            <!-- Separator -->
+            <div class="w-[2px] h-6 bg-gray-600 rounded"></div>
+            <!-- Sound Toggle Button -->
+            <div class="flex items-center gap-2">
+                <button id="sound-toggle-btn" class="selected-btn" data-sound="true">sound: on</button>
+            </div>
+            <!-- Separator -->
+            <div class="w-[2px] h-6 bg-gray-600 rounded"></div>
+            <!-- Sound Type Options -->
+            <div id="sound-type-container" class="flex items-center gap-2">
+                <button class="sound-type-btn" data-sound-type="synth">Synth</button>
+                <button class="sound-type-btn" data-sound-type="piano">Piano</button>
+                <button class="sound-type-btn" data-sound-type="mechanical">Mechanical</button>
+                <button class="sound-type-btn" data-sound-type="blip">Blip</button>
+                <button class="sound-type-btn" data-sound-type="lofi">Lofi</button>
+                <button class="sound-type-btn selected-btn" data-sound-type="typewriter">Typewriter</button>
+            </div>
+            <!-- Separator -->
+            <div class="w-[2px] h-6 bg-gray-600 rounded"></div>
+            <!-- Strict Mode Button -->
+            <div class="flex items-center gap-2">
+                <button class="strict-mode-btn" data-strict="false">strict mode: off</button>
+            </div>
+            <!-- Separator -->
+            <div class="w-[2px] h-6 bg-gray-600 rounded"></div>
+            <!-- New Words Button -->
+            <div>
+                <button id="new-words-btn" class="px-6 py-3 bg-blue-700 hover:bg-blue-600 text-white font-semibold rounded-full shadow-lg transition-colors duration-300">Change Words</button>
+            </div>
+        </div>
+
+        <!-- Typing Area -->
+        <div id="typing-container" class="w-full relative">
+            <div id="text-to-type" class="w-full text-white text-xl md:text-2xl leading-relaxed p-6 rounded-lg bg-slate-900 border border-slate-700 mb-8 focus:outline-none cursor-text text-center md:text-left">
+                <span class="text-gray-400">Select a mode and word count from the top to begin.</span>
+            </div>
+            <!-- Hidden input to capture keyboard events -->
+            <input type="text" id="hidden-input" autofocus>
+        </div>
+
+        <!-- Message Box -->
+        <div id="message-box" class="hidden message-box">
+            <p id="message-text" class="text-xl font-bold"></p>
+            <button id="message-close-btn" class="mt-4 px-6 py-2 bg-blue-600 rounded-full hover:bg-blue-500">Close</button>
+        </div>
+
+        <!-- Stats and Controls -->
+        <div id="results-area" class="w-full flex-col items-center text-center hidden">
+            <h2 class="text-3xl font-bold mb-4 text-white">Test Results</h2>
+            <div class="w-full grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
+                <div class="p-6 bg-blue-700 rounded-lg shadow-inner">
+                    <p class="text-3xl font-bold text-white" id="final-wpm">0</p>
+                    <p class="text-gray-300">Words per Minute (WPM)</p>
+                </div>
+                <div class="p-6 bg-green-700 rounded-lg shadow-inner">
+                    <p class="text-3xl font-bold text-white" id="final-accuracy">0%</p>
+                    <p class="text-gray-300">Accuracy</p>
+                </div>
+                <div class="p-6 bg-gray-700 rounded-lg shadow-inner">
+                    <p class="text-3xl font-bold text-white" id="final-time">0s</p>
+                    <p class="text-gray-300">Time Taken</p>
+                </div>
+            </div>
+            <button id="restart-btn" class="mt-8 px-8 py-4 bg-blue-600 text-white font-bold text-lg rounded-full shadow-lg hover:bg-blue-500 transition-colors duration-300 transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50">Restart Test</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const typingAreaEl = document.getElementById('text-to-type');
+            const hiddenInput = document.getElementById('hidden-input');
+            const resultsArea = document.getElementById('results-area');
+            const typingContainer = document.getElementById('typing-container');
+            const wordCountButtons = document.querySelectorAll('.word-count-btn');
+            const timeButtons = document.querySelectorAll('.time-btn');
+            const modeButtons = document.querySelectorAll('.mode-btn');
+            const soundTypeButtons = document.querySelectorAll('.sound-type-btn');
+            const strictModeBtn = document.querySelector('.strict-mode-btn');
+            const soundToggleBtn = document.getElementById('sound-toggle-btn');
+            const finalWpmEl = document.getElementById('final-wpm');
+            const finalAccuracyEl = document.getElementById('final-accuracy');
+            const finalTimeEl = document.getElementById('final-time');
+            const restartBtn = document.getElementById('restart-btn');
+            const newWordsBtn = document.getElementById('new-words-btn');
+            const messageBox = document.getElementById('message-box');
+            const messageText = document.getElementById('message-text');
+            const messageCloseBtn = document.getElementById('message-close-btn');
+
+            const wordLists = {
+                // Pre-written sentences for each mode
+                lowercase: [
+                    "the quick brown fox jumps over the lazy dog", "programming is the art of telling a computer what to do",
+                    "a journey of a thousand miles begins with a single step", "the sun always shines brightest after the rain has passed",
+                    "to be yourself in a world that is constantly trying to make you something else is the greatest accomplishment",
+                    "hello world this is a test of a typing program", "typing is a valuable skill for everyone to learn"
+                ],
+                mixedcase: [
+                    "The quick brown fox jumps over the lazy dog.", "Programming is the art of telling a computer what to do.",
+                    "A journey of a thousand miles begins with a single step.", "The sun always shines brightest after the rain has passed.",
+                    "To be yourself in a world that is constantly trying to make you something else is the greatest accomplishment.",
+                    "Hello world, this is a test of a typing program.", "Typing is a valuable skill for everyone to learn."
+                ],
+                specialchar: [
+                    "Is it really true that 1+1=2? Yes, it is!", "The address is 123 Main St., Anytown, USA. Do you agree?",
+                    "Could you send me your resume to my.email@example.com? I would appreciate it.", "The price of the item is $9.99, but we can offer a 10% discount.",
+                    "Are you a fan of the show 'Breaking Bad'? It's a classic!", "He asked, \"Where are you going?\" and I replied, \"To the store.\""
+                ]
+            };
+            
+            let originalText = [];
+            let timer = null;
+            let startTime = 0;
+            let totalTypedChars = 0;
+            let correctTypedChars = 0;
+            let completed = false;
+            let currentWordCount = 30; // Default
+            let currentMode = 'mixedcase'; // Default
+            let totalTimeTaken = 0;
+            let isStrictMode = false;
+            let isWordMode = true; // Word mode is always on
+            let isSoundOn = true;
+            let previousInputValue = "";
+            let currentSoundType = 'typewriter'; // Set default to new typewriter sound
+
+            const apiKey = "";
+            const apiUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=" + apiKey;
+            
+            // Define different sound synthesizers and their note ranges
+            const synths = {
+                synth: new Tone.PolySynth(Tone.Synth).toDestination(),
+                // Replaced the broken Sampler URLs with a new, self-contained synth
+                piano: new Tone.PolySynth(Tone.Synth, {
+                    oscillator: { type: "triangle" },
+                    envelope: {
+                        attack: 0.005,
+                        decay: 0.2,
+                        sustain: 0.1,
+                        release: 0.5
+                    }
+                }).toDestination(),
+                mechanical: new Tone.NoiseSynth({
+                    noise: { type: 'pink' },
+                    envelope: {
+                        attack: 0.001,
+                        decay: 0.05,
+                        sustain: 0,
+                        release: 0.05
+                    }
+                }).toDestination(),
+                blip: new Tone.PolySynth(Tone.MembraneSynth, {
+                    pitchDecay: 0.01,
+                    octaves: 2
+                }).toDestination(),
+                lofi: new Tone.PolySynth(Tone.PluckSynth, {
+                    attackNoise: 1,
+                    dampening: 4000
+                }).toDestination(),
+                // Replaced the broken Sampler URLs with a new, self-contained synth
+                typewriter: new Tone.PolySynth(Tone.MembraneSynth, {
+                    pitchDecay: 0.05,
+                    octaves: 2
+                }).toDestination(),
+                carriageReturn: new Tone.MetalSynth({
+                    frequency: 200,
+                    envelope: {
+                        attack: 0.001,
+                        decay: 0.5,
+                        release: 0.2
+                    },
+                    harmonicity: 3,
+                    modulationIndex: 1,
+                    resonance: 500,
+                    octaves: 1.5
+                }).toDestination()
+            };
+            
+            let currentSynth = synths[currentSoundType];
+            const notes = {
+                synth: ['C3', 'E3', 'G3', 'C4', 'E4', 'G4'],
+                piano: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'],
+                mechanical: [], // No notes needed for NoiseSynth
+                blip: ['C5', 'G5'],
+                lofi: ['C4', 'D4', 'E4', 'G4'],
+                typewriter: ['C2', 'C3', 'C4', 'C5'] // Notes for the new synth
+            };
+            let noteIndex = 0;
+            
+            // Show a custom message box instead of alert()
+            const showMessageBox = (message) => {
+                messageText.textContent = message;
+                messageBox.classList.remove('hidden');
+            };
+
+            const hideMessageBox = () => {
+                messageBox.classList.add('hidden');
+            };
+
+            messageCloseBtn.addEventListener('click', hideMessageBox);
+
+            const generateTextWithGemini = async (wordCount, mode) => {
+                let prompt = "";
+                if (mode === 'lowercase') {
+                    // Updated prompt to exclude special characters and numbers
+                    prompt = `Generate a passage of exactly ${wordCount} words for a typing test. The entire passage must be in lowercase and must not include any numbers or special characters. It should only contain alphabetical letters and spaces.`;
+                } else if (mode === 'mixedcase') {
+                    prompt = `Generate a grammatically correct paragraph of exactly ${wordCount} words for a typing test. It must have proper capitalization and punctuation (commas, periods, etc.) but no numbers or special symbols.`;
+                } else if (mode === 'specialchar') {
+                    prompt = `Generate a grammatically correct paragraph of exactly ${wordCount} words for a typing test. It must include a variety of special characters and numbers like @, #, $, %, ^, &, *, (, ), !, ?, ., ,, and numbers.`;
+                } else {
+                     prompt = `Generate a grammatically correct paragraph of exactly ${wordCount} words for a typing test.`;
+                }
+                
+                typingAreaEl.innerHTML = `<span class="text-gray-400">Generating text... please wait.</span>`;
+
+                try {
+                    const payload = {
+                        contents: [{ parts: [{ text: prompt }] }],
+                    };
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    if (!response.ok) {
+                        const errorData = await response.json();
+                        throw new Error(`API error: ${errorData.error.message}`);
+                    }
+                    
+                    const result = await response.json();
+                    const text = result?.candidates?.[0]?.content?.parts?.[0]?.text || "Failed to generate text.";
+                    return text.trim();
+
+                } catch (error) {
+                    console.error("Error generating text:", error);
+                    return "An error occurred. Please try again or select a different mode.";
+                }
+            };
+
+            const getRandomText = (wordCount, mode) => {
+                const list = wordLists[mode] || wordLists.mixedcase;
+                const shuffledSentences = [...list].sort(() => 0.5 - Math.random());
+                let resultText = '';
+                let wordsInResult = 0;
+                
+                for (const sentence of shuffledSentences) {
+                    const words = sentence.split(' ');
+                    for (const word of words) {
+                        if (wordsInResult < wordCount) {
+                            resultText += word + ' ';
+                            wordsInResult++;
+                        } else {
+                            break;
+                        }
+                    }
+                    if (wordsInResult >= wordCount) {
+                        break;
+                    }
+                }
+                return resultText.trim();
+            };
+
+            const initializeTest = async (wordCount, mode) => {
+                let text;
+                if (mode === 'gemini') {
+                    text = await generateTextWithGemini(wordCount, mode);
+                } else {
+                    text = getRandomText(wordCount, mode);
+                }
+                
+                originalText = text.split('');
+                typingAreaEl.innerHTML = originalText.map(char => `<span class="text-untyped">${char}</span>`).join('');
+                hiddenInput.value = '';
+                hiddenInput.disabled = false;
+                hiddenInput.focus();
+                resultsArea.classList.add('hidden');
+                typingContainer.classList.remove('hidden');
+                totalTypedChars = 0;
+                correctTypedChars = 0;
+                completed = false;
+                clearInterval(timer);
+                totalTimeTaken = 0;
+                previousInputValue = ""; // Reset previous input value
+            };
+
+            const updateDisplay = () => {
+                const typedText = hiddenInput.value;
+                const characters = typingAreaEl.querySelectorAll('span');
+                const typedLength = typedText.length;
+                let currentCorrectChars = 0;
+
+                // Check for strict mode and revert if the last character is incorrect
+                if (isStrictMode && typedLength > 0) {
+                    if (typedText[typedLength - 1] !== originalText[typedLength - 1]) {
+                        hiddenInput.value = previousInputValue;
+                        return; // Stop further processing
+                    }
+                }
+
+                // Update previous input value for the next check
+                previousInputValue = hiddenInput.value;
+
+                characters.forEach((charEl, index) => {
+                    // Remove current class from all spans first
+                    charEl.classList.remove('text-current');
+
+                    if (index < typedLength) {
+                        if (charEl.textContent === typedText[index]) {
+                            charEl.className = 'text-correct';
+                            currentCorrectChars++;
+                        } else {
+                            charEl.className = 'text-incorrect';
+                        }
+                    } else {
+                        charEl.className = 'text-untyped';
+                    }
+                });
+
+                // Highlight the current character
+                if (typedLength < characters.length) {
+                    characters[typedLength].classList.add('text-current');
+                }
+
+                // Autoscroll to keep the current word in view
+                if (typedLength > 0 && typedLength < characters.length) {
+                    const currentSpan = characters[typedLength];
+                    const containerRect = typingAreaEl.getBoundingClientRect();
+                    
+                    // Find the start of the current word
+                    let currentWordStartIndex = typedLength;
+                    while (currentWordStartIndex > 0 && originalText[currentWordStartIndex - 1] !== ' ') {
+                        currentWordStartIndex--;
+                    }
+                    const currentWordSpan = characters[currentWordStartIndex];
+                    const currentWordRect = currentWordSpan.getBoundingClientRect();
+
+                    if (currentWordRect.top < containerRect.top || currentWordRect.bottom > containerRect.bottom) {
+                        currentWordSpan.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+
+                totalTypedChars = typedLength;
+                correctTypedChars = currentCorrectChars;
+            };
+
+            const showResults = () => {
+                const wordsTyped = totalTypedChars / 5;
+                const wpm = Math.round((wordsTyped / totalTimeTaken) * 60);
+                const accuracy = (correctTypedChars / totalTypedChars) * 100 || 0;
+
+                finalWpmEl.textContent = isNaN(wpm) || !isFinite(wpm) ? 0 : wpm;
+                finalAccuracyEl.textContent = `${accuracy.toFixed(0)}%`;
+                finalTimeEl.textContent = `${totalTimeTaken.toFixed(1)}s`;
+                typingContainer.classList.add('hidden');
+                resultsArea.classList.remove('hidden');
+            };
+
+            const playTypingSound = (character) => {
+                if (!isSoundOn) return;
+                const typedText = hiddenInput.value;
+                try {
+                    // Start the audio context on the first interaction
+                    if (Tone.context.state !== 'running') {
+                        Tone.start();
+                    }
+                    
+                    const soundNotes = notes[currentSoundType];
+                    const noteToPlay = soundNotes[noteIndex];
+                    const duration = '0.05';
+
+                    switch (currentSoundType) {
+                        case 'mechanical':
+                            // Play the noise synth directly
+                            synths.mechanical.triggerAttackRelease(duration);
+                            break;
+                        case 'typewriter':
+                            // Play the typewriter synth directly since it's now a MembraneSynth
+                            if (character === ' ' && typedText.length > 0 && typedText[typedText.length - 1] !== ' ') {
+                                synths.carriageReturn.triggerAttackRelease("G4", "0.2");
+                            } else {
+                                synths.typewriter.triggerAttackRelease(noteToPlay, duration);
+                                noteIndex = (noteIndex + 1) % soundNotes.length;
+                            }
+                            break;
+                        default: // Handles synth, blip, lofi, piano
+                            currentSynth.triggerAttackRelease(noteToPlay, duration);
+                            noteIndex = (noteIndex + 1) % soundNotes.length;
+                            break;
+                    }
+                } catch (e) {
+                    console.error("Error playing sound:", e);
+                }
+            };
+
+            hiddenInput.addEventListener('input', () => {
+                const typedText = hiddenInput.value;
+                const newCharacter = typedText.slice(-1);
+
+                // Start the timer on the first input
+                if (!timer) {
+                    startTime = Date.now();
+                    timer = setInterval(() => {
+                        totalTimeTaken = (Date.now() - startTime) / 1000;
+                    }, 100);
+                }
+                
+                playTypingSound(newCharacter);
+                updateDisplay();
+
+                // Check for test completion
+                if (hiddenInput.value.length === originalText.length) {
+                    completed = true;
+                    clearInterval(timer);
+                    showResults();
+                }
+            });
+
+            // Handle backspace for word mode
+            hiddenInput.addEventListener('keydown', (e) => {
+                if (isWordMode && e.key === 'Backspace') {
+                    const typedText = hiddenInput.value;
+                    // Prevent backspacing over a space, effectively locking the user to the current word.
+                    if (typedText.length > 0 && typedText.slice(-1) === ' ') {
+                        e.preventDefault();
+                    }
+                }
+            });
+
+            // Handle word count buttons
+            wordCountButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    currentWordCount = parseInt(e.target.dataset.count, 10);
+                    initializeTest(currentWordCount, currentMode);
+                    // Update button active state
+                    wordCountButtons.forEach(btn => btn.classList.remove('selected-btn'));
+                    e.target.classList.add('selected-btn');
+                });
+            });
+
+            // Handle mode buttons
+            modeButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    currentMode = e.target.dataset.mode;
+                    initializeTest(currentWordCount, currentMode);
+                    // Update button active state
+                    modeButtons.forEach(btn => btn.classList.remove('selected-btn'));
+                    e.target.classList.add('selected-btn');
+                });
+            });
+
+            // Handle time buttons
+            timeButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    // Update button active state
+                    timeButtons.forEach(btn => btn.classList.remove('selected-btn'));
+                    e.target.classList.add('selected-btn');
+                    hiddenInput.focus();
+                });
+            });
+
+            // Handle sound type buttons
+            soundTypeButtons.forEach(button => {
+                button.addEventListener('click', (e) => {
+                    currentSoundType = e.target.dataset.soundType;
+                    // Update the currentSynth variable to the new synth
+                    if (currentSoundType === 'mechanical') {
+                        currentSynth = synths.mechanical;
+                    } else if (currentSoundType === 'piano') {
+                        currentSynth = synths.piano;
+                    } else if (currentSoundType === 'typewriter') {
+                        currentSynth = synths.typewriter;
+                    } else {
+                        currentSynth = synths[currentSoundType];
+                    }
+                    // Update button active state
+                    soundTypeButtons.forEach(btn => btn.classList.remove('selected-btn'));
+                    e.target.classList.add('selected-btn');
+                    hiddenInput.focus();
+                });
+            });
+
+            // Handle strict mode button
+            strictModeBtn.addEventListener('click', (e) => {
+                isStrictMode = !isStrictMode;
+                e.target.textContent = `strict mode: ${isStrictMode ? 'on' : 'off'}`;
+                if (isStrictMode) {
+                    e.target.classList.add('selected-btn');
+                } else {
+                    e.target.classList.remove('selected-btn');
+                }
+                hiddenInput.focus();
+            });
+
+            // Handle sound toggle button
+            soundToggleBtn.addEventListener('click', (e) => {
+                isSoundOn = !isSoundOn;
+                e.target.textContent = `sound: ${isSoundOn ? 'on' : 'off'}`;
+                if (isSoundOn) {
+                    e.target.classList.add('selected-btn');
+                } else {
+                    e.target.classList.remove('selected-btn');
+                }
+                hiddenInput.focus();
+            });
+
+            // Handle new words button
+            newWordsBtn.addEventListener('click', () => {
+                initializeTest(currentWordCount, currentMode);
+            });
+
+            // Handle restart button
+            restartBtn.addEventListener('click', () => {
+                resultsArea.classList.add('hidden');
+                typingContainer.classList.remove('hidden');
+                initializeTest(currentWordCount, currentMode);
+            });
+
+            // Initial focus
+            document.addEventListener('click', () => {
+                hiddenInput.focus();
+            });
+
+            // Set initial button states
+            document.querySelector(`[data-count="${currentWordCount}"]`).classList.add('selected-btn');
+            document.querySelector(`[data-mode="${currentMode}"]`).classList.add('selected-btn');
+            document.querySelector(`[data-sound-type="${currentSoundType}"]`).classList.add('selected-btn');
+
+            // Initialize the test on page load
+            initializeTest(currentWordCount, currentMode);
+        });
+    </script>
+</body>
+</html>
